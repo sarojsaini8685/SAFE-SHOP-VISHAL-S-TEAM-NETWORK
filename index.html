@@ -3,31 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Safe Shop - Vishal Saini's Team Manager</title>
+    <title>Safe Shop - Live Cloud Sync Team Manager</title>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
     <style>
         :root { --primary: #0284c7; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
         .container { max-width: 1200px; margin: auto; }
         
-        /* Header & Logo */
         .header { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; text-align: center; }
         .header-top { display: flex; align-items: center; justify-content: center; gap: 15px; }
         .header img { height: 55px; width: auto; object-fit: contain; }
         .header h1 { margin: 0; font-size: 26px; color: #1e3a8a; }
         .header p { margin: 2px 0 0; font-size: 14px; color: #64748b; font-weight: bold; }
         
-        /* Leader Info */
         .profile-info { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 8px 15px; border-radius: 8px; font-size: 13px; color: #166534; }
         .profile-info span { background: #ffffff; padding: 3px 8px; border-radius: 4px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a; }
+
+        .sync-badge { background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; }
 
         .card { background: var(--card); padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
         h3 { margin-top: 0; color: #0f172a; }
         
-        /* Dashboard Grid */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 15px; }
         .side-card { background: #fff; border-radius: 10px; padding: 15px; border: 1px solid #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.04); }
-        .side-card.left { border-top: 4px solid #3b82f6; }
-        .side-card.right { border-top: 4px solid #10b981; }
+        .side-card.left { border-top: 4px solid #e11d48; }
+        .side-card.right { border-top: 4px solid #ca8a04; }
         .side-card.matching { border-top: 4px solid #8b5cf6; }
         
         .card-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
@@ -47,43 +51,53 @@
         th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
         th { background: #f1f5f9; }
         
-        /* Tree Specific Styles */
-        .tree-wrapper { display: flex; flex-direction: column; align-items: center; overflow-x: auto; padding: 20px 0; }
+        .tree-scroll-box {
+            width: 100%; overflow-x: auto; overflow-y: auto; max-height: 75vh;
+            border: 2px solid #cbd5e1; border-radius: 10px; background: #ffffff;
+            padding: 20px; box-sizing: border-box; cursor: grab; user-select: none; position: relative;
+        }
+        .tree-scroll-box::-webkit-scrollbar { height: 14px; width: 14px; }
+        .tree-scroll-box::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+        .tree-scroll-box::-webkit-scrollbar-thumb { background: #0284c7; border-radius: 8px; border: 2px solid #f1f5f9; }
+        .tree-wrapper { display: inline-flex; flex-direction: column; align-items: center; min-width: 100%; padding-bottom: 30px; }
         .node-card { 
             background: #fff; border: 2px solid #0284c7; border-radius: 8px; 
-            padding: 10px; text-align: center; min-width: 220px; 
-            cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.2s;
-            user-select: none;
+            padding: 8px 12px; text-align: center; min-width: 190px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.2s; cursor: pointer;
         }
         .node-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
-        .children-container { display: flex; gap: 15px; margin-top: 20px; position: relative; }
-        .side-block { display: flex; flex-direction: column; align-items: center; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 8px; background: #fafafa; }
-        .side-label { font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; }
-        .label-left { background: #dbeafe; color: #1e40af; }
-        .label-right { background: #d1fae5; color: #065f46; }
+        .children-container { display: flex; gap: 15px; margin-top: 15px; position: relative; justify-content: center; }
+        
+        .side-block { display: flex; flex-direction: column; align-items: center; padding: 12px; border-radius: 10px; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+        .side-block.left-tree { background-color: #ffe4e6; }
+        .side-block.right-tree { background-color: #fef9c3; }
+        
+        .side-label { font-size: 11px; font-weight: bold; padding: 4px 10px; border-radius: 6px; margin-bottom: 8px; text-transform: uppercase; }
+        .label-left { background: #e11d48; color: #ffffff; }
+        .label-right { background: #ca8a04; color: #ffffff; }
+        
         .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; color: white; }
         .badge-active { background: #22c55e; }
         .badge-inactive { background: #ef4444; }
         .badge-root-side { background: #6366f1; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; margin-top: 4px; }
         .toggle-icon { font-size: 12px; margin-left: 5px; color: #64748b; }
-        .ref-info { font-size: 10px; color: #475569; background: #f1f5f9; padding: 2px 4px; border-radius: 4px; margin-top: 4px; }
-        .date-info { font-size: 10px; color: #0f172a; font-weight: bold; background: #fef08a; padding: 2px 5px; border-radius: 4px; margin-top: 4px; display: inline-block; }
+        .ref-info { font-size: 10px; color: #475569; background: #ffffff; padding: 2px 6px; border-radius: 4px; margin-top: 4px; border: 1px solid #cbd5e1; }
+        .date-info { font-size: 10px; color: #0f172a; font-weight: bold; background: #ffffff; padding: 2px 5px; border-radius: 4px; margin-top: 4px; border: 1px solid #e2e8f0; display: inline-block; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- Header -->
     <div class="header">
         <div class="header-top">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Target_Corporation_logo_vector.svg/300px-Target_Corporation_logo_vector.svg.png" alt="Safe Shop Logo" onerror="this.src='https://via.placeholder.com/150x50?text=SAFE+SHOP'">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Target_Corporation_logo_vector.svg/300px-Target_Corporation_logo_vector.svg.png" alt="Safe Shop Logo">
             <div>
                 <h1>SAFE SHOP</h1>
                 <p>VISHAL SAINI'S TEAM BINARY MANAGER</p>
+                <div class="sync-badge" id="syncStatus">🟢 Cloud Sync Active</div>
             </div>
         </div>
         
-        <!-- Leader Details -->
         <div class="profile-info">
             <div>Parent ID: <span>SSS07SALONY</span></div>
             <div>Reference ID: <span>SSS07SALONY</span></div>
@@ -91,12 +105,11 @@
         </div>
     </div>
 
-    <!-- Separate Left / Right Breakdown Dashboard -->
+    <!-- Stats Grid -->
     <div class="stats-grid">
-        <!-- Left Side Card -->
         <div class="side-card left">
-            <div class="card-title" style="color: #1d4ed8;">
-                <span>⬅️ VISHAL'S LEFT TEAM</span>
+            <div class="card-title" style="color: #be123c;">
+                <span>⬅️ VISHAL'S LEFT TEAM (Pink)</span>
                 <span id="stLeftTotal" style="font-size: 13px;">0 Members</span>
             </div>
             <div class="stat-row"><span>Total Purchase (Amount):</span><span class="stat-val" id="stLeftAmt">₹0</span></div>
@@ -105,10 +118,9 @@
             <div class="stat-row"><span>Inactive Members (Red):</span><span class="stat-val" style="color:#dc2626;" id="stLeftInactive">0</span></div>
         </div>
 
-        <!-- Right Side Card -->
         <div class="side-card right">
-            <div class="card-title" style="color: #047857;">
-                <span>VISHAL'S RIGHT TEAM ➡️</span>
+            <div class="card-title" style="color: #a16207;">
+                <span>VISHAL'S RIGHT TEAM (Yellow) ➡️</span>
                 <span id="stRightTotal" style="font-size: 13px;">0 Members</span>
             </div>
             <div class="stat-row"><span>Total Purchase (Amount):</span><span class="stat-val" id="stRightAmt">₹0</span></div>
@@ -117,7 +129,6 @@
             <div class="stat-row"><span>Inactive Members (Red):</span><span class="stat-val" style="color:#dc2626;" id="stRightInactive">0</span></div>
         </div>
 
-        <!-- Matching & Payout Card -->
         <div class="side-card matching">
             <div class="card-title" style="color: #6d28d9;">
                 <span>📊 PAIR MATCHING & INCOME</span>
@@ -130,35 +141,26 @@
         </div>
     </div>
 
-    <!-- Member Entry Form -->
+    <!-- Member Form -->
     <div class="card">
         <h3 id="formTitle">➕ Naya Member Add Karein</h3>
         <input type="hidden" id="editIndex">
         <div class="grid-form">
             <input type="text" id="mId" placeholder="Member ID (Unique)">
             <input type="text" id="mName" placeholder="Full Name">
-            
-            <select id="mSponsor">
-                <option value="">-- Sponsor ID (Referral) --</option>
-            </select>
-
-            <select id="mParent">
-                <option value="">-- Parent ID (Placement) --</option>
-            </select>
-
+            <select id="mSponsor"><option value="">-- Sponsor ID (Referral) --</option></select>
+            <select id="mParent"><option value="">-- Parent ID (Placement) --</option></select>
             <select id="mSide">
                 <option value="Left">Parent ID ke LEFT me lagana hai</option>
                 <option value="Right">Parent ID ke RIGHT me lagana hai</option>
             </select>
-            
             <select id="mStatus">
                 <option value="Active">Active (Green ID)</option>
                 <option value="Inactive">Inactive (Red ID)</option>
             </select>
-
             <input type="number" id="mBV" placeholder="BV Count (e.g. 100)">
             <input type="number" id="mAmt" placeholder="Saman/Purchase Amount (₹)">
-            <input type="date" id="mJoinDate" title="Joining Date">
+            <input type="date" id="mJoinDate">
         </div>
         <textarea id="mNotes" rows="2" placeholder="Saman ka naam / Notes / Extra details..."></textarea>
         <div class="btn-group">
@@ -167,39 +169,38 @@
         </div>
     </div>
 
-    <!-- Search & Backup Tools -->
+    <!-- Search & Backup -->
     <div class="card">
         <div class="grid-form" style="grid-template-columns: 2fr 1fr 1fr;">
-            <input type="text" id="searchInput" oninput="renderData()" placeholder="🔎 Search Name, ID, Sponsor ya Joining Date...">
+            <input type="text" id="searchInput" oninput="renderData()" placeholder="🔎 Search Name, ID, Sponsor ya Date...">
             <button onclick="exportData()" class="btn-secondary">⬇️ Backup Download</button>
             <button onclick="document.getElementById('importFile').click()" class="btn-secondary">⬆️ Restore Data</button>
             <input type="file" id="importFile" style="display:none" onchange="importData(event)">
         </div>
     </div>
 
-    <!-- Views Tabs -->
+    <!-- Views -->
     <div class="card">
         <div class="btn-group" style="margin-bottom:15px;">
             <button id="btnTree" onclick="switchTab('tree')">🌳 Interactive Visual Tree</button>
             <button id="btnList" onclick="switchTab('list')" class="btn-secondary">📋 All Members Overview List</button>
         </div>
 
-        <!-- Tree Tab -->
         <div id="treeTab">
-            <small style="color:#64748b;">💡 Member Box par click karke unke niche ki Left/Right team expand/collapse karein.</small>
-            <div id="treeContainer" class="tree-wrapper"></div>
+            <div id="scrollContainer" class="tree-scroll-box">
+                <div id="treeContainer" class="tree-wrapper"></div>
+            </div>
         </div>
 
-        <!-- Table Tab -->
         <div id="listTab" style="display:none; overflow-x:auto;">
             <table>
                 <thead>
                     <tr>
                         <th>Joining Date</th>
                         <th>Member ID & Name</th>
-                        <th>Vishal's Side (Leg)</th>
+                        <th>Vishal's Side</th>
                         <th>Parent Placement</th>
-                        <th>Sponsor (Referral)</th>
+                        <th>Sponsor</th>
                         <th>Status</th>
                         <th>BV</th>
                         <th>Amount (₹)</th>
@@ -213,26 +214,77 @@
 </div>
 
 <script>
-    let team = JSON.parse(localStorage.getItem('apiTeamDataPro')) || [];
+    // -------------------------------------------------------------
+    // Firebase Configuration - Yahan Apne Firebase Account Ki Details Paste Karein
+    // -------------------------------------------------------------
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const teamRef = db.ref('safeshop_team_data');
+
+    let team = [];
     let expandedNodes = {};
 
     document.getElementById('mJoinDate').valueAsDate = new Date();
 
+    // Firebase Real-time Listener
+    teamRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        team = data ? Object.values(data) : [];
+        document.getElementById('syncStatus').innerHTML = "🟢 Synced Live";
+        renderData();
+    }, (error) => {
+        document.getElementById('syncStatus').innerHTML = "🔴 Sync Failed (Check Keys)";
+    });
+
+    function saveMemberToCloud() {
+        document.getElementById('syncStatus').innerHTML = "🟡 Saving to Cloud...";
+        teamRef.set(team);
+    }
+
+    // Scroll drag logic
+    const slider = document.getElementById('scrollContainer');
+    let isDown = false, startX, scrollLeft, startY, scrollTop;
+    slider.addEventListener('mousedown', (e) => {
+        if(e.target.closest('.node-card')) return;
+        isDown = true;
+        startX = e.pageX - slider.offsetLeft;
+        startY = e.pageY - slider.offsetTop;
+        scrollLeft = slider.scrollLeft;
+        scrollTop = slider.scrollTop;
+    });
+    slider.addEventListener('mouseleave', () => { isDown = false; });
+    slider.addEventListener('mouseup', () => { isDown = false; });
+    slider.addEventListener('mousemove', (e) => {
+        if(!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - slider.offsetLeft;
+        const y = e.pageY - slider.offsetTop;
+        slider.scrollLeft = scrollLeft - (x - startX) * 1.5;
+        slider.scrollTop = scrollTop - (y - startY) * 1.5;
+    });
+
     function getVishalSide(memberId) {
         const root = team.find(m => !m.parent);
         if (!root || memberId === root.id) return 'Main Root';
-
         let current = team.find(m => m.id === memberId);
         if (!current) return 'N/A';
-
         while (current && current.parent !== root.id) {
             current = team.find(m => m.id === current.parent);
         }
-
         if (current && current.parent === root.id) {
             return current.side === 'Left' ? 'Vishal LEFT Leg' : 'Vishal RIGHT Leg';
         }
-
         return 'N/A';
     }
 
@@ -266,9 +318,8 @@
             team.push(newMember);
         }
 
-        localStorage.setItem('apiTeamDataPro', JSON.stringify(team));
+        saveMemberToCloud();
         resetForm();
-        renderData();
     }
 
     function resetForm() {
@@ -297,47 +348,34 @@
     function getSubtreeData(nodeId) {
         let res = { bv: 0, amt: 0, active: 0, inactive: 0, count: 0 };
         const children = team.filter(m => m.parent === nodeId);
-        
         children.forEach(c => {
             res.count += 1;
             res.amt += (c.amt || 0);
-            if(c.status === 'Active') {
-                res.active += 1;
-                res.bv += (c.bv || 0);
-            } else {
-                res.inactive += 1;
-            }
+            if(c.status === 'Active') { res.active += 1; res.bv += (c.bv || 0); }
+            else { res.inactive += 1; }
             let subRes = getSubtreeData(c.id);
-            res.bv += subRes.bv;
-            res.amt += subRes.amt;
-            res.active += subRes.active;
-            res.inactive += subRes.inactive;
-            res.count += subRes.count;
+            res.bv += subRes.bv; res.amt += subRes.amt;
+            res.active += subRes.active; res.inactive += subRes.inactive; res.count += subRes.count;
         });
         return res;
     }
 
     function updateStats() {
         const root = team.find(m => !m.parent);
-        
         let lData = { bv: 0, amt: 0, active: 0, inactive: 0, count: 0 };
         let rData = { bv: 0, amt: 0, active: 0, inactive: 0, count: 0 };
 
         if (root) {
-            const leftDirects = team.filter(m => m.parent === root.id && m.side === 'Left');
-            leftDirects.forEach(c => {
-                lData.count += 1;
-                lData.amt += (c.amt || 0);
+            team.filter(m => m.parent === root.id && m.side === 'Left').forEach(c => {
+                lData.count += 1; lData.amt += (c.amt || 0);
                 if(c.status === 'Active') { lData.active += 1; lData.bv += (c.bv || 0); }
                 else { lData.inactive += 1; }
                 let sub = getSubtreeData(c.id);
                 lData.bv += sub.bv; lData.amt += sub.amt; lData.active += sub.active; lData.inactive += sub.inactive; lData.count += sub.count;
             });
 
-            const rightDirects = team.filter(m => m.parent === root.id && m.side === 'Right');
-            rightDirects.forEach(c => {
-                rData.count += 1;
-                rData.amt += (c.amt || 0);
+            team.filter(m => m.parent === root.id && m.side === 'Right').forEach(c => {
+                rData.count += 1; rData.amt += (c.amt || 0);
                 if(c.status === 'Active') { rData.active += 1; rData.bv += (c.bv || 0); }
                 else { rData.inactive += 1; }
                 let sub = getSubtreeData(c.id);
@@ -346,10 +384,6 @@
         }
 
         const pairs = Math.floor(Math.min(lData.bv, rData.bv) / 100);
-        const income = pairs * 1000;
-        const lCarry = lData.bv - (pairs * 100);
-        const rCarry = rData.bv - (pairs * 100);
-
         document.getElementById('stLeftTotal').innerText = lData.count + ' Members';
         document.getElementById('stLeftAmt').innerText = '₹' + lData.amt;
         document.getElementById('stLeftBV').innerText = lData.bv + ' BV';
@@ -364,18 +398,16 @@
 
         document.getElementById('stTotalTeam').innerText = 'Total: ' + team.length;
         document.getElementById('stPairs').innerText = pairs + ' Pairs';
-        document.getElementById('stIncome').innerText = '₹' + income;
-        document.getElementById('stLeftCarry').innerText = lCarry + ' BV';
-        document.getElementById('stRightCarry').innerText = rCarry + ' BV';
+        document.getElementById('stIncome').innerText = '₹' + (pairs * 1000);
+        document.getElementById('stLeftCarry').innerText = (lData.bv - pairs * 100) + ' BV';
+        document.getElementById('stRightCarry').innerText = (rData.bv - pairs * 100) + ' BV';
     }
 
     function updateDropdowns() {
         const sponsorSelect = document.getElementById('mSponsor');
         const parentSelect = document.getElementById('mParent');
-
         sponsorSelect.innerHTML = '<option value="">-- Sponsor ID (Referral) --</option>';
         parentSelect.innerHTML = '<option value="">-- Main Root Member (Top Level) --</option>';
-
         team.forEach(m => {
             sponsorSelect.innerHTML += `<option value="${m.id}">${m.name} (${m.id})</option>`;
             parentSelect.innerHTML += `<option value="${m.id}">${m.name} (${m.id})</option>`;
@@ -386,24 +418,14 @@
         const query = document.getElementById('searchInput').value.toLowerCase();
         const tbody = document.getElementById('memberTable');
         tbody.innerHTML = '';
-
-        team.filter(m => 
-            m.name.toLowerCase().includes(query) || 
-            m.id.toLowerCase().includes(query) || 
-            (m.joinDate && m.joinDate.includes(query)) ||
-            (m.sponsor && m.sponsor.toLowerCase().includes(query))
-        ).forEach((m, idx) => {
-            const sponsorName = team.find(s => s.id === m.sponsor)?.name || 'Direct / None';
-            const parentName = team.find(p => p.id === m.parent)?.name || 'Main Root';
-            const vSide = getVishalSide(m.id);
-
+        team.filter(m => m.name.toLowerCase().includes(query) || m.id.toLowerCase().includes(query)).forEach((m, idx) => {
             tbody.innerHTML += `
                 <tr>
                     <td><strong>${m.joinDate || 'N/A'}</strong></td>
                     <td><strong>${m.name}</strong><br><small style="color:#64748b;">ID: ${m.id}</small></td>
-                    <td><span class="badge-root-side">${vSide}</span></td>
-                    <td>${parentName} <br><small style="color:#64748b;">(${m.side} Side)</small></td>
-                    <td>${sponsorName} <br><small style="color:#64748b;">(${m.sponsor || '-'})</small></td>
+                    <td><span class="badge-root-side">${getVishalSide(m.id)}</span></td>
+                    <td>${m.parent || 'Main Root'} (${m.side || '-'})</td>
+                    <td>${m.sponsor || 'Self'}</td>
                     <td><span class="badge ${m.status === 'Active' ? 'badge-active' : 'badge-inactive'}">${m.status}</span></td>
                     <td><strong>${m.bv || 0} BV</strong></td>
                     <td>₹${m.amt || 0}</td>
@@ -411,98 +433,72 @@
                         <button onclick="editMember(${idx})" style="padding:4px 8px; font-size:12px;">Edit</button>
                         <button onclick="deleteMember(${idx})" class="btn-danger" style="padding:4px 8px; font-size:12px;">Delete</button>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         });
     }
 
-    function toggleNode(id) {
-        expandedNodes[id] = !expandedNodes[id];
-        renderTree();
-    }
+    function toggleNode(id) { expandedNodes[id] = !expandedNodes[id]; renderTree(); }
 
     function renderTree() {
         const container = document.getElementById('treeContainer');
         container.innerHTML = '';
         const roots = team.filter(m => !m.parent);
-        
         if (roots.length === 0) {
             container.innerHTML = '<p style="color:#64748b;">Tree dekhne ke liye main root member add karein.</p>';
             return;
         }
-
-        roots.forEach(root => {
-            container.appendChild(buildTreeUI(root));
-        });
+        roots.forEach(root => container.appendChild(buildTreeUI(root)));
     }
 
     function buildTreeUI(node) {
         const wrapper = document.createElement('div');
-        wrapper.style.display = 'flex';
-        wrapper.style.flexDirection = 'column';
-        wrapper.style.alignItems = 'center';
+        wrapper.style.display = 'flex'; wrapper.style.flexDirection = 'column'; wrapper.style.alignItems = 'center';
 
         const leftChildren = team.filter(m => m.parent === node.id && m.side === 'Left');
         const rightChildren = team.filter(m => m.parent === node.id && m.side === 'Right');
         const hasChildren = leftChildren.length > 0 || rightChildren.length > 0;
 
-        if (expandedNodes[node.id] === undefined) {
-            expandedNodes[node.id] = true;
-        }
-
-        const isExpanded = expandedNodes[node.id];
-        const sponsorObj = team.find(s => s.id === node.sponsor);
-        const vSide = getVishalSide(node.id);
+        if (expandedNodes[node.id] === undefined) expandedNodes[node.id] = true;
 
         const card = document.createElement('div');
         card.className = 'node-card';
-        card.onclick = () => toggleNode(node.id);
+        card.onclick = (e) => { e.stopPropagation(); toggleNode(node.id); };
         card.innerHTML = `
-            <div style="font-weight:bold; font-size:14px; color:#1e293b;">
-                ${node.name} 
-                ${hasChildren ? `<span class="toggle-icon">${isExpanded ? '▼' : '▶'}</span>` : ''}
+            <div style="font-weight:bold; font-size:13px; color:#1e293b;">
+                ${node.name} ${hasChildren ? `<span class="toggle-icon">${expandedNodes[node.id] ? '▼' : '▶'}</span>` : ''}
             </div>
             <div style="font-size:11px; color:#64748b;">ID: ${node.id}</div>
-            <div><span class="badge-root-side">${vSide}</span></div>
+            <div><span class="badge-root-side">${getVishalSide(node.id)}</span></div>
             <div style="margin-top:4px;">
                 <span class="badge ${node.status === 'Active' ? 'badge-active' : 'badge-inactive'}">${node.status}</span>
                 <span style="font-size:11px; font-weight:bold; color:#0284c7;">${node.bv || 0} BV</span>
                 <span style="font-size:11px; font-weight:bold; color:#16a34a;">₹${node.amt || 0}</span>
             </div>
             <div class="date-info">📅 Joined: ${node.joinDate || 'N/A'}</div>
-            <div class="ref-info">Sponsor: ${sponsorObj ? sponsorObj.name : (node.sponsor || 'Self')}</div>
+            <div class="ref-info">Sponsor: ${node.sponsor || 'Self'}</div>
         `;
         wrapper.appendChild(card);
 
-        if (hasChildren && isExpanded) {
+        if (hasChildren && expandedNodes[node.id]) {
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'children-container';
 
-            // LEFT
             const leftBlock = document.createElement('div');
-            leftBlock.className = 'side-block';
+            leftBlock.className = 'side-block left-tree';
             leftBlock.innerHTML = `<span class="side-label label-left">⬅️ ${node.name.split(' ')[0]}'s LEFT</span>`;
-            if (leftChildren.length > 0) {
-                leftChildren.forEach(child => leftBlock.appendChild(buildTreeUI(child)));
-            } else {
-                leftBlock.innerHTML += `<small style="color:#94a3b8;">Empty</small>`;
-            }
+            if (leftChildren.length > 0) leftChildren.forEach(child => leftBlock.appendChild(buildTreeUI(child)));
+            else leftBlock.innerHTML += `<small style="color:#9f1239; margin-top:5px;">Empty</small>`;
             childrenContainer.appendChild(leftBlock);
 
-            // RIGHT
             const rightBlock = document.createElement('div');
-            rightBlock.className = 'side-block';
+            rightBlock.className = 'side-block right-tree';
             rightBlock.innerHTML = `<span class="side-label label-right">${node.name.split(' ')[0]}'s RIGHT ➡️</span>`;
-            if (rightChildren.length > 0) {
-                rightChildren.forEach(child => rightBlock.appendChild(buildTreeUI(child)));
-            } else {
-                rightBlock.innerHTML += `<small style="color:#94a3b8;">Empty</small>`;
-            }
+            if (rightChildren.length > 0) rightChildren.forEach(child => rightBlock.appendChild(buildTreeUI(child)));
+            else rightBlock.innerHTML += `<small style="color:#854d0e; margin-top:5px;">Empty</small>`;
             childrenContainer.appendChild(rightBlock);
 
             wrapper.appendChild(childrenContainer);
         }
-
         return wrapper;
     }
 
@@ -519,31 +515,22 @@
         document.getElementById('mJoinDate').value = m.joinDate || '';
         document.getElementById('mNotes').value = m.notes || '';
         document.getElementById('editIndex').value = idx;
-
         document.getElementById('saveBtn').innerText = 'Update Member';
-        document.getElementById('formTitle').innerText = '✏️ Member Detail Edit Karein';
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function deleteMember(idx) {
         if (confirm('Kya aap is member ko hatana chahte hain?')) {
             team.splice(idx, 1);
-            localStorage.setItem('apiTeamDataPro', JSON.stringify(team));
-            renderData();
+            saveMemberToCloud();
         }
     }
 
     function switchTab(tab) {
         document.getElementById('treeTab').style.display = tab === 'tree' ? 'block' : 'none';
         document.getElementById('listTab').style.display = tab === 'list' ? 'block' : 'none';
-        
-        if(tab === 'tree') {
-            document.getElementById('btnTree').className = '';
-            document.getElementById('btnList').className = 'btn-secondary';
-        } else {
-            document.getElementById('btnTree').className = 'btn-secondary';
-            document.getElementById('btnList').className = '';
-        }
+        document.getElementById('btnTree').className = tab === 'tree' ? '' : 'btn-secondary';
+        document.getElementById('btnList').className = tab === 'list' ? '' : 'btn-secondary';
     }
 
     function exportData() {
@@ -551,9 +538,7 @@
         const dlAnchor = document.createElement('a');
         dlAnchor.setAttribute("href", dataStr);
         dlAnchor.setAttribute("download", "SafeShop_Team_Backup.json");
-        document.body.appendChild(dlAnchor);
         dlAnchor.click();
-        dlAnchor.remove();
     }
 
     function importData(event) {
@@ -561,17 +546,12 @@
         fileReader.onload = function(e) {
             try {
                 team = JSON.parse(e.target.result);
-                localStorage.setItem('apiTeamDataPro', JSON.stringify(team));
-                renderData();
-                alert('Backup successfully restore ho gaya hai!');
-            } catch (err) {
-                alert('Galat backup file selected!');
-            }
+                saveMemberToCloud();
+                alert('Backup Cloud par Restore ho gaya hai!');
+            } catch (err) { alert('Galat backup file!'); }
         };
         fileReader.readAsText(event.target.files[0]);
     }
-
-    renderData();
 </script>
 </body>
 </html>
